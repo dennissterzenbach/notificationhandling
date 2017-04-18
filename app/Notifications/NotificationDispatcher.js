@@ -9,15 +9,14 @@ function NotificationDispatcher(configuredNotifications) {
 	var _channels = {};
 	var _loghandler = null;
 
-	var service = {},
-		self = this,
-		returnServices = {};
+	var service = {};
+	var returnServices = {};
 
 	// SEND
-	service.postNotification = postNotification;
+	service.postNotification = postNotification.bind(this);
 	// MANAGE OBSERVERS
-	service.registerObserverForName = registerObserver;
-	service.removeObserver = removeObserver;
+	service.registerObserverForName = registerObserver.bind(this);
+	service.removeObserver = removeObserver.bind(this);
 	// CONFIGURATION AND TOOLS
 	service.Notifications = configuredNotifications;
 	service.registerLogHandler = registerLogHandler;
@@ -36,8 +35,7 @@ function NotificationDispatcher(configuredNotifications) {
 	function Channel(name) {
 		var _channelObservers = {};
 
-		var service = {},
-			self = this;
+		var service = {};
 
 		service.reset = resetChannel;
 		service.getObservers = getObservers;
@@ -85,10 +83,10 @@ function NotificationDispatcher(configuredNotifications) {
 
 	function registerObserver(notificationName, receiverName, callback) {
 		if (!notificationName) {
-			return self;
+			return this;
 		}
 		if (!receiverName) {
-			 return self;
+			return this;
 		}
 		if (!_isChannelDefined(notificationName)) {
 			_resetChannel(notificationName);
@@ -108,7 +106,7 @@ function NotificationDispatcher(configuredNotifications) {
 		_notifyObserverDidRegister(receiverName);
 
 		// console.info('registeredObserver: ', notificationName, receiverName, callback);
-		return self;
+		return this;
 	}
 
 	function _registerNewOrUpdateExistingObserver(notificationName, receiverName, callback) {
@@ -124,31 +122,35 @@ function NotificationDispatcher(configuredNotifications) {
 	 * Remove the observer identified with given receiverName from all channels or notifications
 	 * it has registered before.
 	 *
-	 * @param receiverName string|function
+	 * @param observerName string|function
 	 */
-	function removeObserver(receiverName) {
-		if (receiverName) {
-			receiverName = _adjustReceiverName(receiverName);
+	function removeObserver(observerName) {
+        if (observerName) {
+            observerName = _adjustObserverName(observerName);
 
-			if (_isObserverRegistered(receiverName)) {
-				// do unregister all handlers registered with this observer:
-				// iterate through all channels added to the observer during registration and delete it from there
-				for (var notificationName in _observers[receiverName].callbackForChannel) {
-					// remove the callback from observer
-					delete _observers[receiverName].callbackForChannel[notificationName];
-					// delete the callback from the notification channel
-					// this should stop it from receiving notifications of this name.
-					_removeObserverFromChannel(notificationName, receiverName);
-				}
-				// now remove the observer completely
-				delete _observers[receiverName];
-				_notifyObserverDidUnregister(receiverName);
-			} else {
-				_notifyObserverNotRegistered(receiverName);
-			}
-		}
+            if (_isObserverRegistered(observerName)) {
+                // do unregister all handlers registered with this observer:
+                // iterate through all channels added to the observer during registration and delete it from there
+                for (var notificationName in _observers[observerName].callbackForChannel) {
+                    // delete the callback from the notification channel
+                    // this should stop it from receiving notifications of this name.
+                    _removeObserverFromChannel(notificationName, observerName);
+                }
 
-		return self;
+                // now that we have removed the observer from any channel
+                // we finally clear the list to avoid leaving any links or
+                // references
+                _observers[observerName].callbackForChannel.length = 0;
+
+                // now remove the observer completely
+                delete _observers[observerName];
+                _notifyObserverDidUnregister(observerName);
+            } else {
+                _notifyObserverNotRegistered(observerName);
+            }
+        }
+
+        return this;
 	}
 
 	/**
@@ -171,10 +173,10 @@ function NotificationDispatcher(configuredNotifications) {
 	 * @param payload mixed|null
 	 */
 	function postNotification(notificationName, payload) {
-		var receiverList = _getReceiversForChannel(notificationName),
-			receiverNo,
-			receiver,
-			notification;
+		var receiverList = _getReceiversForChannel(notificationName);
+		var receiverNo;
+		var receiver;
+		var notification;
 
 		notification = _createNotification(notificationName, payload);
 
@@ -184,7 +186,7 @@ function NotificationDispatcher(configuredNotifications) {
 			receiver(notification);
 		}
 
-		return self;
+		return this;
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////
@@ -263,10 +265,3 @@ function NotificationDispatcher(configuredNotifications) {
 		_loghandler.info('observer was unregistered: ', receiverName);
 	}
 }
-
-NotificationDispatcher.blub = blub;
-
-function blub() {
-	console.log('blob');
-}
-
